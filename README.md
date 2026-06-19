@@ -19,6 +19,14 @@ The service limits requests to a default `RATE_LIMIT_PER_MIN` (5 per minute) per
 To handle partial outages or transient database locks (simulated via the `DB_FAIL_RATE` environment variable), the database layer is wrapped in a robust `withRetry` asynchronous execution block.
 - **How it works:** If a transient `SQLITE_BUSY` error occurs, the wrapper catches it and pauses execution using **Exponential Backoff with Jitter**. It automatically retries the operation up to 5 times before failing over, smoothing out traffic spikes and maximizing availability without dropping data.
 
+### 4. Comprehensive Concurrency Testing
+To mathematically prove the concurrency resilience of the backend, the test suite actively attacks the endpoints.
+- **How it works:** The tests use `Promise.all` to launch completely parallel, simultaneous requests against the idempotency layer and the rate limiter. It explicitly verifies that the DB doesn't lock up, identical requests correctly resolve to the exact same database row, and the rate limiter perfectly cuts off at the absolute limit without racing. Additionally, dedicated isolated test databases are generated to prevent separate test files from interfering with each other's locks.
+
+### 5. Scale Plan (10k RPS)
+A concrete architectural roadmap (`SCALE.md`) is provided to outline the evolution from a single-node SQLite backend to a horizontally scalable distributed system.
+- **How it works:** It addresses migrating from SQLite to a highly available DB (e.g., PostgreSQL), extracting the in-memory rate limiter / idempotency cache into a Redis cluster, and utilizing message queues (e.g., Kafka) to instantly buffer ingested signals before database writes to handle massive load spikes seamlessly.
+
 ---
 
 ## 🚀 Getting Started
